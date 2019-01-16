@@ -14,6 +14,8 @@ import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+enum OutputType{HTML, MARKDOWN}
+
 public class FileManager {
     FileOutputStream fos;
     DataOutputStream dos;
@@ -21,9 +23,16 @@ public class FileManager {
     public String header;
     public String APEX_DOC_PATH = "";
     public StringBuffer infoMessages;
+    public OutputType outputFormat = OutputType.HTML;
+    public void setoutputFormat(OutputType whatFormat){
+        outputFormat = whatFormat;
+    }
 
     public FileManager() {
         infoMessages = new StringBuffer();
+
+        // The default output type is still HTML
+        outputFormat = OutputType.HTML;
     }
 
     private static String escapeHTML(String s) {
@@ -50,7 +59,11 @@ public class FileManager {
             this.path = path;
     }
 
-    private boolean createHTML(TreeMap<String, String> mapFNameToContent, IProgressMonitor monitor) {
+    private boolean writeFiles(TreeMap<String, String> mapFNameToContent, IProgressMonitor monitor) {
+        String fileSuffix = ".html";
+        if (outputFormat == OutputType.MARKDOWN)
+            fileSuffix = ".md";
+
         try {
             if (path.endsWith("/") || path.endsWith("\\")) {
                 path += Constants.ROOT_DIRECTORY; // + "/" + fileName + ".html";
@@ -62,7 +75,7 @@ public class FileManager {
 
             for (String fileName : mapFNameToContent.keySet()) {
                 String contents = mapFNameToContent.get(fileName);
-                fileName = path + "/" + fileName + ".html";
+                fileName = path + "/" + fileName + fileSuffix;
                 File file = new File(fileName);
                 fos = new FileOutputStream(file);
                 dos = new DataOutputStream(fos);
@@ -134,6 +147,14 @@ public class FileManager {
         // create our Class Group content files
         createClassGroupContent(mapFNameToContent, links, projectDetail, mapGroupNameToClassGroup, cModels, monitor);
 
+        if (outputFormat == OutputType.HTML)
+            createHTMLFiles(cModels, projectDetail, hostedSourceURL, monitor, links, mapFNameToContent);
+        else
+            createMarkdownFiles(cModels, projectDetail, hostedSourceURL, monitor, links, mapFNameToContent);
+    }
+
+    private void createHTMLFiles(ArrayList<ClassModel> cModels, String projectDetail, String hostedSourceURL, IProgressMonitor monitor, String links, TreeMap<String, String> mapFNameToContent) {
+        String fileName;
         for (ClassModel cModel : cModels) {
             String contents = links;
             if (cModel.getNameLine() != null && cModel.getNameLine().length() > 0) {
@@ -158,7 +179,192 @@ public class FileManager {
             if (monitor != null)
                 monitor.worked(1);
         }
-        createHTML(mapFNameToContent, monitor);
+        writeFiles(mapFNameToContent, monitor);
+    }
+
+    private void createMarkdownFiles(ArrayList<ClassModel> cModels, String projectDetail, String hostedSourceURL, IProgressMonitor monitor, String links, TreeMap<String, String> mapFNameToContent) {
+        String fileName;
+        for (ClassModel cModel : cModels) {
+            String contents = "";
+            if (cModel.getNameLine() != null && cModel.getNameLine().length() > 0) {
+                fileName = cModel.getClassName();
+
+                contents += markdownForClassModel(cModel, hostedSourceURL);
+
+                // deal with any nested classes
+                for (ClassModel cmChild : cModel.getChildClassesSorted()) {
+                    contents += "<p/>";
+                    contents += markdownForClassModel(cmChild, hostedSourceURL);
+                }
+
+            } else {
+                continue;
+            }
+            //contents += "</div>";
+
+            //contents = Constants.getHeader(projectDetail) + contents + Constants.FOOTER;
+            mapFNameToContent.put(fileName, contents);
+            if (monitor != null)
+                monitor.worked(1);
+        }
+        writeFiles(mapFNameToContent, monitor);
+    }
+
+
+    /*********************************************************************************************
+     * @description creates the Markdown content for the provided class, including its
+     *              property and methods
+     * @param cModel
+     * @param hostedSourceURL
+     * @return html string
+     */
+    private String markdownForClassModel(ClassModel cModel, String hostedSourceURL){
+        String contents = "content goes here";
+/*
+        contents += "<h2 class='section-title'>" +
+                strLinkfromModel(cModel, cModel.getTopmostClassName(), hostedSourceURL) +
+                cModel.getClassName() + "</a>" +
+                "</h2>";
+
+        contents += "<div class='classSignature'>" +
+                strLinkfromModel(cModel, cModel.getTopmostClassName(), hostedSourceURL) +
+                escapeHTML(cModel.getNameLine()) + "</a></div>";
+
+        contents += "<div class='classDetails'>";
+
+        if(cModel.getDeprecated() != ""){
+            contents +="<span class='warning'>Deprecated</span>: " + escapeHTML(cModel.getDeprecated()) + "<br><br/>";
+        }
+
+        if (cModel.getDescription() != "")
+            contents += "" + escapeHTML(cModel.getDescription()) + "<br><br>";
+
+        if (cModel.getAuthor() != "")
+            contents += "Author: " + escapeHTML(cModel.getAuthor()) + "<br>";
+
+        if (cModel.getDate() != "")
+            contents += "Date: " + escapeHTML(cModel.getDate());
+        contents += "</div><p/>";
+        contents += "</div><p/>";
+
+        if (cModel.getProperties().size() > 0) {
+            // start Properties
+            contents +=
+                    "<h2 class='subsection-title'>Properties</h2>" +
+                            "<div class='subsection-container'> " +
+                            "<table class='properties' > ";
+
+            for (PropertyModel prop : cModel.getPropertiesSorted()) {
+                contents += "<tr class='propertyscope" + prop.getScope() + "'><td class='clsPropertyName'>" +
+                        prop.getPropertyName() + "</td>";
+                contents += "<td><div class='clsPropertyDeclaration'>" +
+                        strLinkfromModel(prop, cModel.getTopmostClassName(), hostedSourceURL) +
+                        escapeHTML(prop.getNameLine()) + "</a></div>";
+                contents += "<div class='clsPropertyDescription'>" + escapeHTML(prop.getDescription()) + "</div></tr>";
+            }
+            // end Properties
+            contents += "</table></div><p/>";
+        }
+
+        if (cModel.getMethods().size() > 0) {
+            // start Methods
+            contents +=
+                    "<h2 class='subsection-title'>Methods</h2>" +
+                            "<div class='subsection-container'> ";
+
+            // method Table of Contents (TOC)
+            contents += "<ul class='methodTOC'>";
+            for (MethodModel method : cModel.getMethodsSorted()) {
+                contents += "<li class='methodscope" + method.getScope() + "' >";
+                contents += "<a class='methodTOCEntry' href='#" + method.getMethodName() + "'>"
+                        + method.getMethodName() + "</a>";
+                if (method.getDescription() != "")
+                    contents += "<div class='methodTOCDescription'>" + method.getDescription() + "</div>";
+                contents += "</li>";
+            }
+            contents += "</ul>";
+
+            // full method display
+            for (MethodModel method : cModel.getMethodsSorted()) {
+                contents += "<div class='methodscope" + method.getScope() + "' >";
+                contents += "<h2 class='methodHeader'><a id='" + method.getMethodName() + "'/>"
+                        + method.getMethodName() + "</h2>" +
+                        "<div class='methodSignature'>" +
+                        strLinkfromModel(method, cModel.getTopmostClassName(), hostedSourceURL) +
+                        escapeHTML(method.getNameLine()) + "</a></div>";
+
+                if(method.getDeprecated() != ""){
+                    contents +="<div class='methodSubTitle warning'>Deprecated</div>";
+                    contents += "<div class='methodReturns'>" + escapeHTML(method.getDeprecated()) + "</div>";
+                }
+
+                if (method.getDescription() != "")
+                    contents += "<div class='methodDescription'>" + escapeHTML(method.getDescription()) + "</div>";
+
+                if (method.getParams().size() > 0) {
+                    contents += "<div class='methodSubTitle'>Parameters</div>";
+                    for (String param : method.getParams()) {
+                        param = escapeHTML(param);
+                        if (param != null && param.trim().length() > 0) {
+                            Pattern p = Pattern.compile("\\s");
+                            Matcher m = p.matcher(param);
+
+                            String paramName;
+                            String paramDescription;
+                            if (m.find()) {
+                                int ich = m.start();
+                                paramName = param.substring(0, ich);
+                                paramDescription = param.substring(ich + 1);
+                            } else {
+                                paramName = param;
+                                paramDescription = null;
+                            }
+                            contents += "<div class='paramName'>" + paramName + "</div>";
+
+                            if (paramDescription != null)
+                                contents += "<div class='paramDescription'>" + paramDescription + "</div>";
+                        }
+                    }
+                    // end Parameters
+                }
+
+                if (method.getReturns() != "") {
+                    contents += "<div class='methodSubTitle'>Return Value</div>";
+                    contents += "<div class='methodReturns'>" + escapeHTML(method.getReturns()) + "</div>";
+                }
+
+                if (method.getExample() != "") {
+                    contents += "<div class='methodSubTitle'>Example</div>";
+                    contents += "<code class='methodExample'>" + escapeHTML(method.getExample()) + "</code>";
+                }
+
+                if (method.getAuthor() != "") {
+                    contents += "<div class='methodSubTitle'>Author</div>";
+                    contents += "<div class='methodReturns'>" + escapeHTML(method.getAuthor()) + "</div>";
+                }
+
+                if (method.getExceptionList().size() > 0) {
+                    contents += "<div class='methodSubTitle'>Exceptions</div>";
+                    for(String except : method.getExceptionList()){
+                        contents += "<div class='methodReturns'>" + escapeHTML(except) + "</div>";
+                    }
+                }
+
+                if (method.getDate() != "") {
+                    contents += "<div class='methodSubTitle'>Date</div>";
+                    contents += "<div class='methodReturns'>" + escapeHTML(method.getDate()) + "</div>";
+                }
+
+                // end current method
+                contents += "</div>";
+            }
+            // end all methods
+            contents += "</div>";
+        }
+
+
+* */
+        return contents;
     }
 
     /*********************************************************************************************
