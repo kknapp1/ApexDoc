@@ -219,71 +219,66 @@ public class FileManager {
      * @return html string
      */
     private String markdownForClassModel(ClassModel cModel, String hostedSourceURL){
-        String contents = "content goes here";
-/*
-        contents += "<h2 class='section-title'>" +
-                strLinkfromModel(cModel, cModel.getTopmostClassName(), hostedSourceURL) +
-                cModel.getClassName() + "</a>" +
-                "</h2>";
+        String mdBreak = "  " + "\n";
+        String mdTableOpen = "| | |" + mdBreak + "|:-|:-||" + mdBreak;
+        String contents = "";
 
-        contents += "<div class='classSignature'>" +
-                strLinkfromModel(cModel, cModel.getTopmostClassName(), hostedSourceURL) +
-                escapeHTML(cModel.getNameLine()) + "</a></div>";
+        contents += "# " + cModel.getClassName() + mdBreak;
 
-        contents += "<div class='classDetails'>";
+        contents += strLinkfromModel(cModel, cModel.getTopmostClassName(), hostedSourceURL) +
+                escapeHTML(cModel.getNameLine()) + "</a>";
+
+        contents += mdBreak;
 
         if(cModel.getDeprecated() != ""){
-            contents +="<span class='warning'>Deprecated</span>: " + escapeHTML(cModel.getDeprecated()) + "<br><br/>";
+            contents +="Deprecated: " + escapeHTML(cModel.getDeprecated());
+            contents += mdBreak;
         }
 
         if (cModel.getDescription() != "")
-            contents += "" + escapeHTML(cModel.getDescription()) + "<br><br>";
+            contents += "" + cModel.getDescription() + mdBreak;
 
         if (cModel.getAuthor() != "")
-            contents += "Author: " + escapeHTML(cModel.getAuthor()) + "<br>";
+            contents += "Author: " + cModel.getAuthor() + mdBreak;
 
         if (cModel.getDate() != "")
-            contents += "Date: " + escapeHTML(cModel.getDate());
-        contents += "</div><p/>";
-        contents += "</div><p/>";
+            contents += "Date: " + cModel.getDate();
 
         if (cModel.getProperties().size() > 0) {
             // start Properties
-            contents +=
-                    "<h2 class='subsection-title'>Properties</h2>" +
-                            "<div class='subsection-container'> " +
-                            "<table class='properties' > ";
+            contents += "## Properties" + mdBreak;
+            contents += mdTableOpen;
 
             for (PropertyModel prop : cModel.getPropertiesSorted()) {
-                contents += "<tr class='propertyscope" + prop.getScope() + "'><td class='clsPropertyName'>" +
-                        prop.getPropertyName() + "</td>";
-                contents += "<td><div class='clsPropertyDeclaration'>" +
+                contents += "" + prop.getScope() + "" +
+                        prop.getPropertyName() + "";
+                contents += "" +
                         strLinkfromModel(prop, cModel.getTopmostClassName(), hostedSourceURL) +
-                        escapeHTML(prop.getNameLine()) + "</a></div>";
-                contents += "<div class='clsPropertyDescription'>" + escapeHTML(prop.getDescription()) + "</div></tr>";
+                        escapeHTML(prop.getNameLine()) + "</a>";
+                contents += " | " + escapeHTML(prop.getDescription()) + "";
             }
             // end Properties
-            contents += "</table></div><p/>";
+
         }
 
         if (cModel.getMethods().size() > 0) {
             // start Methods
-            contents +=
-                    "<h2 class='subsection-title'>Methods</h2>" +
-                            "<div class='subsection-container'> ";
+            contents += "## Methods";
+            contents += mdBreak;
 
             // method Table of Contents (TOC)
-            contents += "<ul class='methodTOC'>";
+            contents += mdTableOpen;
             for (MethodModel method : cModel.getMethodsSorted()) {
-                contents += "<li class='methodscope" + method.getScope() + "' >";
-                contents += "<a class='methodTOCEntry' href='#" + method.getMethodName() + "'>"
+                contents += "" + method.getScope() + "";
+                contents += "<a href='#" + method.getMethodName() + "'>"
                         + method.getMethodName() + "</a>";
                 if (method.getDescription() != "")
-                    contents += "<div class='methodTOCDescription'>" + method.getDescription() + "</div>";
-                contents += "</li>";
+                    contents += "" + method.getDescription() + "";
+                contents += mdBreak;
             }
-            contents += "</ul>";
+        }
 
+/*
             // full method display
             for (MethodModel method : cModel.getMethodsSorted()) {
                 contents += "<div class='methodscope" + method.getScope() + "' >";
