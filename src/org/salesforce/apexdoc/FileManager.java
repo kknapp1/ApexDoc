@@ -216,33 +216,43 @@ public class FileManager {
      *              property and methods
      * @param cModel
      * @param hostedSourceURL
-     * @return html string
+     * @return markdown string
      */
     private String markdownForClassModel(ClassModel cModel, String hostedSourceURL){
         String mdBreak = "  " + "\n";
-        String mdTableOpen = "| | |" + mdBreak + "|:-|:-||" + mdBreak;
+        String mdTableOpen = "| Name | Description |" + mdBreak + "|:-|:-|" + mdBreak;
+        String mdHR = "\n\n---\n";
+        String mdPreOpen = "``` Java\n"; // Preformatted code
+        String mdPreClose = "\n```\n";
+        String mdTOC = "\n[[_TOC_]]\n";
         String contents = "";
 
+        // Class Header
         contents += "# " + cModel.getClassName() + mdBreak;
 
-        contents += strLinkfromModel(cModel, cModel.getTopmostClassName(), hostedSourceURL) +
-                escapeHTML(cModel.getNameLine()) + "</a>";
-
-        contents += mdBreak;
-
         if(cModel.getDeprecated() != ""){
-            contents +="Deprecated: " + escapeHTML(cModel.getDeprecated());
-            contents += mdBreak;
+            contents += "<font color='Red'>" + "Deprecated: " + escapeHTML(cModel.getDeprecated()) + "</font>";
+            contents += mdBreak + mdBreak;
         }
 
         if (cModel.getDescription() != "")
-            contents += "" + cModel.getDescription() + mdBreak;
+            contents += "" + cModel.getDescription() + mdBreak + mdBreak;
 
         if (cModel.getAuthor() != "")
             contents += "Author: " + cModel.getAuthor() + mdBreak;
 
         if (cModel.getDate() != "")
-            contents += "Date: " + cModel.getDate();
+            contents += "Date: " + cModel.getDate() + mdBreak;
+
+        contents += mdBreak;
+
+        // not quite ready for this, yet
+        //contents += mdTOC;
+
+        // full name line as link
+        //contents += strLinkfromModel(cModel, cModel.getTopmostClassName(), hostedSourceURL) +
+        //        escapeHTML(cModel.getNameLine()) + "</a>" + mdBreak;
+        contents += mdPreOpen + cModel.getNameLine() + mdPreClose;
 
         if (cModel.getProperties().size() > 0) {
             // start Properties
@@ -257,9 +267,7 @@ public class FileManager {
                         escapeHTML(prop.getNameLine()) + "</a>";
                 contents += " | " + escapeHTML(prop.getDescription()) + "";
             }
-            // end Properties
-
-        }
+        }// end Properties
 
         if (cModel.getMethods().size() > 0) {
             // start Methods
@@ -269,35 +277,39 @@ public class FileManager {
             // method Table of Contents (TOC)
             contents += mdTableOpen;
             for (MethodModel method : cModel.getMethodsSorted()) {
-                contents += "" + method.getScope() + "";
-                contents += "<a href='#" + method.getMethodName() + "'>"
-                        + method.getMethodName() + "</a>";
+                contents += "" + method.getScope() + " ";
+                //contents += "<a href='#" + method.getMethodName() + "'>" + method.getMethodName() + "</a>";
+                contents += method.getMethodName();
+                contents += " | ";
                 if (method.getDescription() != "")
                     contents += "" + method.getDescription() + "";
                 contents += mdBreak;
             }
-        }
 
-/*
             // full method display
             for (MethodModel method : cModel.getMethodsSorted()) {
-                contents += "<div class='methodscope" + method.getScope() + "' >";
-                contents += "<h2 class='methodHeader'><a id='" + method.getMethodName() + "'/>"
-                        + method.getMethodName() + "</h2>" +
-                        "<div class='methodSignature'>" +
-                        strLinkfromModel(method, cModel.getTopmostClassName(), hostedSourceURL) +
-                        escapeHTML(method.getNameLine()) + "</a></div>";
+                contents += mdHR;
+                contents += "## " + method.getMethodName() + mdBreak;
 
                 if(method.getDeprecated() != ""){
-                    contents +="<div class='methodSubTitle warning'>Deprecated</div>";
-                    contents += "<div class='methodReturns'>" + escapeHTML(method.getDeprecated()) + "</div>";
+                    contents += "<font color='Red'>" + "Deprecated: " + escapeHTML(method.getDeprecated()) + "</font>";
+                    contents += mdBreak;
                 }
 
+                contents += mdBreak;
+
                 if (method.getDescription() != "")
-                    contents += "<div class='methodDescription'>" + escapeHTML(method.getDescription()) + "</div>";
+                    contents += "" + escapeHTML(method.getDescription()) + mdBreak;
+
+                //contents += strLinkfromModel(method, cModel.getTopmostClassName(), hostedSourceURL) +
+                //        escapeHTML(method.getNameLine()) + "</a>";
+                contents += mdPreOpen + cModel.getNameLine() + mdPreClose;
+
+                contents += mdBreak;
 
                 if (method.getParams().size() > 0) {
-                    contents += "<div class='methodSubTitle'>Parameters</div>";
+                    contents += "### Parameters" + mdBreak;
+                    contents += mdTableOpen;
                     for (String param : method.getParams()) {
                         param = escapeHTML(param);
                         if (param != null && param.trim().length() > 0) {
@@ -314,51 +326,51 @@ public class FileManager {
                                 paramName = param;
                                 paramDescription = null;
                             }
-                            contents += "<div class='paramName'>" + paramName + "</div>";
+                            contents += "" + paramName + " | ";
 
                             if (paramDescription != null)
-                                contents += "<div class='paramDescription'>" + paramDescription + "</div>";
+                                contents += "" + paramDescription;
+
+                            contents += mdBreak;
                         }
                     }
                     // end Parameters
                 }
 
                 if (method.getReturns() != "") {
-                    contents += "<div class='methodSubTitle'>Return Value</div>";
-                    contents += "<div class='methodReturns'>" + escapeHTML(method.getReturns()) + "</div>";
+                    contents += "### Return Value" + mdBreak;
+                    contents += "" + escapeHTML(method.getReturns()) + mdBreak;
                 }
 
                 if (method.getExample() != "") {
-                    contents += "<div class='methodSubTitle'>Example</div>";
+                    contents += "### Example" + mdBreak;
                     contents += "<code class='methodExample'>" + escapeHTML(method.getExample()) + "</code>";
                 }
 
                 if (method.getAuthor() != "") {
-                    contents += "<div class='methodSubTitle'>Author</div>";
-                    contents += "<div class='methodReturns'>" + escapeHTML(method.getAuthor()) + "</div>";
+                    contents += "## Author" + mdBreak;
+                    contents += "" + escapeHTML(method.getAuthor()) + mdBreak;
                 }
 
                 if (method.getExceptionList().size() > 0) {
-                    contents += "<div class='methodSubTitle'>Exceptions</div>";
+                    contents += "### Exceptions" + mdBreak;
                     for(String except : method.getExceptionList()){
-                        contents += "<div class='methodReturns'>" + escapeHTML(except) + "</div>";
+                        contents += "<div class='methodReturns'>" + escapeHTML(except) + mdBreak;
                     }
                 }
 
                 if (method.getDate() != "") {
-                    contents += "<div class='methodSubTitle'>Date</div>";
-                    contents += "<div class='methodReturns'>" + escapeHTML(method.getDate()) + "</div>";
+                    contents += "### Date" + mdBreak;
+                    contents += "" + escapeHTML(method.getDate()) + mdBreak;
                 }
 
                 // end current method
-                contents += "</div>";
+                //contents += mdBreak;
             }
             // end all methods
-            contents += "</div>";
+            contents += mdBreak;
         }
 
-
-* */
         return contents;
     }
 
